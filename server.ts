@@ -9,15 +9,6 @@ const __dirname = path.dirname(__filename);
 
 const PORT = Number(process.env.PORT) || 3000;
 
-const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
-    },
-  },
-});
-
 interface MapsLink {
   title: string;
   uri: string;
@@ -30,7 +21,12 @@ interface ReviewSnippet {
 
 async function startServer() {
   const app = express();
+  app.set('trust proxy', 1);
   app.use(express.json());
+
+  app.get('/api/health', (_req, res) => {
+    res.json({ status: 'ok', service: 'aitjitiket' });
+  });
 
   app.post('/api/venue-info', async (req, res) => {
     try {
@@ -46,10 +42,20 @@ async function startServer() {
       }
 
       if (!process.env.GEMINI_API_KEY) {
-        return res.status(500).json({
-          error: 'GEMINI_API_KEY is not configured on the server.',
+        return res.status(503).json({
+          error:
+            'Les infos IA Google Maps nécessitent GEMINI_API_KEY dans les variables d’environnement du serveur. Utilisez le bouton « Ouvrir Google Maps » ci-dessus.',
         });
       }
+
+      const ai = new GoogleGenAI({
+        apiKey: process.env.GEMINI_API_KEY,
+        httpOptions: {
+          headers: {
+            'User-Agent': 'aistudio-build',
+          },
+        },
+      });
 
       const targetLang =
         lang === 'en' ? 'English' : lang === 'ar' ? 'Arabic' : 'French';
@@ -115,14 +121,37 @@ async function startServer() {
         reviewSnippets: reviewSnippets.slice(0, 3),
       });
     } catch (err) {
-      const message =
+      const rawMessage =
         err instanceof Error ? err.message : 'Unable to retrieve Google Maps venue details.';
       console.error('Maps Grounding error:', err);
-      return res.status(500).json({ error: message });
+
+      if (rawMessage.includes('429') || rawMessage.includes('RESOURCE_EXHAUSTED')) {
+        return res.status(429).json({
+          error:
+            'Quota Gemini API temporairement atteint (429). Vérifiez votre quota ou sélectionnez une clé facturée dans Settings > Secrets.',
+        });
+      }
+      if (rawMessage.includes('403') || rawMessage.includes('PERMISSION_DENIED') || rawMessage.includes('API_KEY_INVALID')) {
+        return res.status(403).json({
+          error:
+            'Clé Gemini API invalide ou non autorisée. Vérifiez votre clé dans Settings > Secrets.',
+        });
+      }
+
+      return res.status(500).json({
+        error: 'Impossible de récupérer les informations Google Maps pour le moment.',
+      });
     }
   });
 
-  if (process.env.NODE_ENV !== 'production') {
+  app.use('/api', (_req, res) => {
+    res.status(404).json({ error: 'API endpoint not found.' });
+  });
+
+  const isCompiledServer = path.basename(__dirname) === 'dist';
+  const isProduction = process.env.NODE_ENV === 'production' || isCompiledServer;
+
+  if (!isProduction) {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
@@ -130,7 +159,7 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.resolve(__dirname, 'dist');
+    const distPath = isCompiledServer ? __dirname : path.resolve(__dirname, 'dist');
     app.use(express.static(distPath));
     app.get('*', (_req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
@@ -138,7 +167,7 @@ async function startServer() {
   }
 
   app.listen(PORT, '0.0.0.0', () => {
-    console.log(`AITJITIKET server running on http://0.0.0.0:${PORT}`);
+    console.log(`AITJITIKET server running on http://0.0.0.0:${PORT} (${isProduction ? 'production' : 'development'})`);
   });
 }
 
