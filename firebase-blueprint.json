@@ -1,0 +1,358 @@
+{
+  "entities": {
+    "Event": {
+      "title": "Event",
+      "description": "A curated international event managed exclusively by the AITJITIKET administrator.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 160,
+          "description": "Event display title"
+        },
+        "titleAr": {
+          "type": "string",
+          "maxLength": 160,
+          "description": "Optional Arabic event display title"
+        },
+        "category": {
+          "type": "string",
+          "enum": [
+            "Football",
+            "Concerts",
+            "Festivals",
+            "Sports",
+            "International Events",
+            "VIP Experiences"
+          ],
+          "description": "Event category"
+        },
+        "date": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 60,
+          "description": "Event date or date range (e.g., 2026-05-30 or Juin 2026)"
+        },
+        "venue": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 140,
+          "description": "Stadium, arena, or venue name"
+        },
+        "city": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80,
+          "description": "Host city"
+        },
+        "country": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80,
+          "description": "Host country"
+        },
+        "descriptionFr": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "French event description"
+        },
+        "descriptionEn": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "English event description"
+        },
+        "descriptionAr": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Arabic event description"
+        },
+        "imageUrl": {
+          "type": "string",
+          "maxLength": 600000,
+          "description": "Image path or uploaded compressed data URL"
+        },
+        "published": {
+          "type": "boolean",
+          "description": "Whether the event is visible to public visitors"
+        },
+        "featured": {
+          "type": "boolean",
+          "description": "Whether the event is featured on the homepage"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update"
+        }
+      },
+      "required": [
+        "title",
+        "category",
+        "date",
+        "venue",
+        "city",
+        "country",
+        "published",
+        "featured",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "TicketRequest": {
+      "title": "TicketRequest",
+      "description": "A customer ticket research request for either a catalog event or a custom unlisted event.",
+      "type": "object",
+      "properties": {
+        "reference": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 32,
+          "pattern": "^ATJ-[0-9]{4}-[A-Z0-9]{4,8}$",
+          "description": "Unique human-readable request reference"
+        },
+        "requestType": {
+          "type": "string",
+          "enum": ["catalog", "custom"],
+          "description": "Whether submitted from an event page or custom request form"
+        },
+        "eventId": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Optional catalog event ID"
+        },
+        "fullName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 120,
+          "description": "Customer full name"
+        },
+        "email": {
+          "type": "string",
+          "maxLength": 160,
+          "description": "Customer email address"
+        },
+        "whatsapp": {
+          "type": "string",
+          "minLength": 6,
+          "maxLength": 40,
+          "description": "Customer WhatsApp phone number"
+        },
+        "eventName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 180,
+          "description": "Event, artist, or team name"
+        },
+        "eventDate": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80,
+          "description": "Event date or preferred period"
+        },
+        "cityCountry": {
+          "type": "string",
+          "maxLength": 140,
+          "description": "City and country for the event"
+        },
+        "ticketQuantity": {
+          "type": "number",
+          "description": "Requested number of tickets (1 to 50)"
+        },
+        "preferredCategory": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Preferred ticket category"
+        },
+        "preferredSeating": {
+          "type": "string",
+          "maxLength": 140,
+          "description": "Preferred seating area"
+        },
+        "maxBudgetPerTicket": {
+          "type": "number",
+          "description": "Customer maximum budget per ticket"
+        },
+        "currency": {
+          "type": "string",
+          "enum": ["EUR", "MAD"],
+          "description": "Selected currency"
+        },
+        "additionalInfo": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Additional customer requirements"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "New Request",
+            "Under Research",
+            "Searching for Options",
+            "Offer Available",
+            "Awaiting Customer Decision",
+            "Payment Pending",
+            "Confirmed",
+            "Completed",
+            "Unavailable",
+            "Cancelled"
+          ],
+          "description": "Current workflow status"
+        },
+        "privateNotes": {
+          "type": "string",
+          "maxLength": 4000,
+          "description": "Admin-only private research notes and supplier details"
+        },
+        "offerTicketPrice": {
+          "type": "number",
+          "description": "Admin proposed price per ticket"
+        },
+        "offerServiceFee": {
+          "type": "number",
+          "description": "Admin concierge service fee"
+        },
+        "offerCurrency": {
+          "type": "string",
+          "enum": ["EUR", "MAD"],
+          "description": "Offer currency"
+        },
+        "offerCategory": {
+          "type": "string",
+          "maxLength": 140,
+          "description": "Offer seat category details"
+        },
+        "offerMessage": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Personalized proposal message to send to customer"
+        },
+        "offerSentAt": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "ISO timestamp when offer was marked sent"
+        },
+        "communications": {
+          "type": "array",
+          "description": "Admin-logged communication timeline entries (max 30)"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of creation"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of last update"
+        }
+      },
+      "required": [
+        "reference",
+        "requestType",
+        "fullName",
+        "whatsapp",
+        "eventName",
+        "eventDate",
+        "ticketQuantity",
+        "preferredCategory",
+        "maxBudgetPerTicket",
+        "currency",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Authorized AITJITIKET administrator record.",
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "role": {
+          "type": "string",
+          "enum": ["admin"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["email", "role", "createdAt"]
+    },
+    "SiteSettings": {
+      "title": "SiteSettings",
+      "description": "Admin-managed website copy and concierge contact configuration.",
+      "type": "object",
+      "properties": {
+        "conciergeWhatsapp": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "adminNotificationEmail": {
+          "type": "string",
+          "maxLength": 160
+        },
+        "heroHeadlineFr": {
+          "type": "string",
+          "maxLength": 240
+        },
+        "heroSubheadlineFr": {
+          "type": "string",
+          "maxLength": 600
+        },
+        "customHeadingFr": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "customDescriptionFr": {
+          "type": "string",
+          "maxLength": 800
+        },
+        "researchTimeFr": {
+          "type": "string",
+          "maxLength": 600
+        },
+        "disclaimerFr": {
+          "type": "string",
+          "maxLength": 1200
+        },
+        "disclaimerEn": {
+          "type": "string",
+          "maxLength": 1200
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["updatedAt"]
+    }
+  },
+  "firestore": {
+    "/events/{eventId}": {
+      "schema": { "$ref": "#/entities/Event" },
+      "description": "Curated events catalogue. Published events are publicly readable; all writes and unpublished reads are admin-only."
+    },
+    "/requests/{requestId}": {
+      "schema": { "$ref": "#/entities/TicketRequest" },
+      "description": "Customer ticket requests. Public create with strict validation; get/list/update/delete strictly admin-only to isolate customer PII."
+    },
+    "/admins/{adminId}": {
+      "schema": { "$ref": "#/entities/AdminUser" },
+      "description": "Admin role registry. Strictly admin-only."
+    },
+    "/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/SiteSettings" },
+      "description": "Publicly readable website content settings; writable only by administrators."
+    }
+  }
+}

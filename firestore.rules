@@ -1,0 +1,282 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net: default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Primitive Helpers ---
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isPrimaryAdmin() {
+      return isSignedIn() && isEmailVerified() && request.auth.token.email == 'newlifestore057@gmail.com';
+    }
+
+    function isAdmin() {
+      return isPrimaryAdmin() || (
+        isSignedIn() && isEmailVerified() &&
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    // --- Event Validation Blueprint ---
+    function isValidEventCategory(cat) {
+      return cat in [
+        'Football',
+        'Concerts',
+        'Festivals',
+        'Sports',
+        'International Events',
+        'VIP Experiences'
+      ];
+    }
+
+    function isValidEvent(data) {
+      return data.keys().hasAll([
+        'title', 'category', 'date', 'venue', 'city', 'country',
+        'published', 'featured', 'createdAt', 'updatedAt'
+      ])
+      && data.keys().hasOnly([
+        'title', 'titleAr', 'category', 'date', 'venue', 'city', 'country',
+        'descriptionFr', 'descriptionEn', 'descriptionAr', 'imageUrl',
+        'published', 'featured', 'createdAt', 'updatedAt'
+      ])
+      && data.title is string && data.title.size() >= 2 && data.title.size() <= 160
+      && (!('titleAr' in data) || (data.titleAr is string && data.titleAr.size() <= 160))
+      && data.category is string && isValidEventCategory(data.category)
+      && data.date is string && data.date.size() >= 4 && data.date.size() <= 60
+      && data.venue is string && data.venue.size() >= 2 && data.venue.size() <= 140
+      && data.city is string && data.city.size() >= 2 && data.city.size() <= 80
+      && data.country is string && data.country.size() >= 2 && data.country.size() <= 80
+      && (!('descriptionFr' in data) || (data.descriptionFr is string && data.descriptionFr.size() <= 2000))
+      && (!('descriptionEn' in data) || (data.descriptionEn is string && data.descriptionEn.size() <= 2000))
+      && (!('descriptionAr' in data) || (data.descriptionAr is string && data.descriptionAr.size() <= 2000))
+      && (!('imageUrl' in data) || (data.imageUrl is string && data.imageUrl.size() <= 600000))
+      && data.published is bool
+      && data.featured is bool
+      && data.createdAt is timestamp
+      && data.updatedAt is timestamp;
+    }
+
+    // --- TicketRequest Validation Blueprints ---
+    function isValidRequestStatus(status) {
+      return status in [
+        'New Request',
+        'Under Research',
+        'Searching for Options',
+        'Offer Available',
+        'Awaiting Customer Decision',
+        'Payment Pending',
+        'Confirmed',
+        'Completed',
+        'Unavailable',
+        'Cancelled'
+      ];
+    }
+
+    function isValidCurrency(curr) {
+      return curr in ['EUR', 'MAD'];
+    }
+
+    function isValidTicketRequestCreate(data) {
+      return data.keys().hasAll([
+        'reference', 'requestType', 'fullName', 'whatsapp',
+        'eventName', 'eventDate', 'ticketQuantity', 'preferredCategory',
+        'maxBudgetPerTicket', 'currency', 'status', 'createdAt', 'updatedAt'
+      ])
+      && data.keys().hasOnly([
+        'reference', 'requestType', 'eventId', 'fullName', 'email', 'whatsapp',
+        'eventName', 'eventDate', 'cityCountry', 'ticketQuantity',
+        'preferredCategory', 'preferredSeating', 'maxBudgetPerTicket',
+        'currency', 'additionalInfo', 'status', 'createdAt', 'updatedAt'
+      ])
+      && data.reference is string && data.reference.size() >= 6 && data.reference.size() <= 32
+      && data.reference.matches('^ATJ-[0-9]{4}-[A-Z0-9]{4,8}$')
+      && data.requestType in ['catalog', 'custom']
+      && (!('eventId' in data) || (data.eventId is string && data.eventId.size() <= 128 && (data.eventId == '' || isValidId(data.eventId))))
+      && data.fullName is string && data.fullName.size() >= 2 && data.fullName.size() <= 120
+      && (!('email' in data) || (data.email is string && data.email.size() <= 160))
+      && data.whatsapp is string && data.whatsapp.size() >= 6 && data.whatsapp.size() <= 40
+      && data.eventName is string && data.eventName.size() >= 2 && data.eventName.size() <= 180
+      && data.eventDate is string && data.eventDate.size() >= 2 && data.eventDate.size() <= 80
+      && (!('cityCountry' in data) || (data.cityCountry is string && data.cityCountry.size() <= 140))
+      && data.ticketQuantity is number && data.ticketQuantity >= 1 && data.ticketQuantity <= 50
+      && data.preferredCategory is string && data.preferredCategory.size() >= 1 && data.preferredCategory.size() <= 100
+      && (!('preferredSeating' in data) || (data.preferredSeating is string && data.preferredSeating.size() <= 140))
+      && data.maxBudgetPerTicket is number && data.maxBudgetPerTicket >= 0 && data.maxBudgetPerTicket <= 1000000
+      && data.currency is string && isValidCurrency(data.currency)
+      && (!('additionalInfo' in data) || (data.additionalInfo is string && data.additionalInfo.size() <= 2000))
+      && data.status == 'New Request'
+      && data.createdAt == request.time
+      && data.updatedAt == request.time;
+    }
+
+    function isValidTicketRequestUpdate(data) {
+      return data.keys().hasAll([
+        'reference', 'requestType', 'fullName', 'whatsapp',
+        'eventName', 'eventDate', 'ticketQuantity', 'preferredCategory',
+        'maxBudgetPerTicket', 'currency', 'status', 'createdAt', 'updatedAt'
+      ])
+      && data.keys().hasOnly([
+        'reference', 'requestType', 'eventId', 'fullName', 'email', 'whatsapp',
+        'eventName', 'eventDate', 'cityCountry', 'ticketQuantity',
+        'preferredCategory', 'preferredSeating', 'maxBudgetPerTicket',
+        'currency', 'additionalInfo', 'status', 'privateNotes',
+        'offerTicketPrice', 'offerServiceFee', 'offerCurrency',
+        'offerCategory', 'offerMessage', 'offerSentAt', 'communications',
+        'createdAt', 'updatedAt'
+      ])
+      && data.reference is string && data.reference.size() >= 6 && data.reference.size() <= 32
+      && data.requestType in ['catalog', 'custom']
+      && (!('eventId' in data) || (data.eventId is string && data.eventId.size() <= 128))
+      && data.fullName is string && data.fullName.size() >= 2 && data.fullName.size() <= 120
+      && (!('email' in data) || (data.email is string && data.email.size() <= 160))
+      && data.whatsapp is string && data.whatsapp.size() >= 6 && data.whatsapp.size() <= 40
+      && data.eventName is string && data.eventName.size() >= 2 && data.eventName.size() <= 180
+      && data.eventDate is string && data.eventDate.size() >= 2 && data.eventDate.size() <= 80
+      && (!('cityCountry' in data) || (data.cityCountry is string && data.cityCountry.size() <= 140))
+      && data.ticketQuantity is number && data.ticketQuantity >= 1 && data.ticketQuantity <= 50
+      && data.preferredCategory is string && data.preferredCategory.size() >= 1 && data.preferredCategory.size() <= 100
+      && (!('preferredSeating' in data) || (data.preferredSeating is string && data.preferredSeating.size() <= 140))
+      && data.maxBudgetPerTicket is number && data.maxBudgetPerTicket >= 0 && data.maxBudgetPerTicket <= 1000000
+      && data.currency is string && isValidCurrency(data.currency)
+      && (!('additionalInfo' in data) || (data.additionalInfo is string && data.additionalInfo.size() <= 2000))
+      && data.status is string && isValidRequestStatus(data.status)
+      && (!('privateNotes' in data) || (data.privateNotes is string && data.privateNotes.size() <= 4000))
+      && (!('offerTicketPrice' in data) || (data.offerTicketPrice is number && data.offerTicketPrice >= 0 && data.offerTicketPrice <= 1000000))
+      && (!('offerServiceFee' in data) || (data.offerServiceFee is number && data.offerServiceFee >= 0 && data.offerServiceFee <= 1000000))
+      && (!('offerCurrency' in data) || (data.offerCurrency is string && isValidCurrency(data.offerCurrency)))
+      && (!('offerCategory' in data) || (data.offerCategory is string && data.offerCategory.size() <= 140))
+      && (!('offerMessage' in data) || (data.offerMessage is string && data.offerMessage.size() <= 2000))
+      && (!('offerSentAt' in data) || (data.offerSentAt is string && data.offerSentAt.size() <= 60))
+      && (!('communications' in data) || (
+        data.communications is list && data.communications.size() <= 30 &&
+        (data.communications.size() == 0 || data.communications[0] is map)
+      ))
+      && data.createdAt is timestamp
+      && data.updatedAt == request.time;
+    }
+
+    function isValidAdminUser(data) {
+      return data.keys().hasAll(['email', 'role', 'createdAt'])
+      && data.keys().hasOnly(['email', 'role', 'createdAt'])
+      && data.email is string && data.email.size() >= 3 && data.email.size() <= 160
+      && data.role == 'admin'
+      && data.createdAt is timestamp;
+    }
+
+    // --- Collection: /events/{eventId} ---
+    match /events/{eventId} {
+      allow get: if isValidId(eventId) && (existing().published == true || isAdmin());
+      allow list: if existing().published == true || isPrimaryAdmin();
+
+      allow create: if isValidId(eventId)
+        && isValidEvent(incoming())
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && isAdmin();
+
+      allow update: if isValidId(eventId)
+        && isValidEvent(incoming())
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && isAdmin();
+
+      allow delete: if isValidId(eventId) && isAdmin();
+    }
+
+    // --- Collection: /requests/{requestId} ---
+    match /requests/{requestId} {
+      // Strictly isolate customer PII and private notes to admins only
+      allow get: if isValidId(requestId) && isAdmin();
+      allow list: if isPrimaryAdmin();
+
+      // Public customers may submit a new ticket research request with strict schema enforcement
+      allow create: if isValidId(requestId)
+        && isValidTicketRequestCreate(incoming())
+        && (
+          incoming().requestType == 'custom' ||
+          !('eventId' in incoming()) ||
+          incoming().eventId == '' ||
+          exists(/databases/$(database)/documents/events/$(incoming().eventId))
+        );
+
+      // Only admins can update status, add private notes, build offers, or log communications
+      allow update: if isValidId(requestId)
+        && isValidTicketRequestUpdate(incoming())
+        && incoming().createdAt == existing().createdAt
+        && incoming().reference == existing().reference
+        && incoming().requestType == existing().requestType
+        && isAdmin()
+        && incoming().diff(existing()).affectedKeys().hasOnly([
+          'status', 'privateNotes', 'offerTicketPrice', 'offerServiceFee',
+          'offerCurrency', 'offerCategory', 'offerMessage', 'offerSentAt',
+          'communications', 'updatedAt'
+        ]);
+
+      allow delete: if isValidId(requestId) && isAdmin();
+    }
+
+    function isValidSiteSettings(data) {
+      return data.keys().hasAll(['updatedAt'])
+      && data.keys().hasOnly([
+        'conciergeWhatsapp', 'adminNotificationEmail',
+        'heroHeadlineFr', 'heroSubheadlineFr',
+        'customHeadingFr', 'customDescriptionFr',
+        'researchTimeFr', 'disclaimerFr', 'disclaimerEn',
+        'updatedAt'
+      ])
+      && (!('conciergeWhatsapp' in data) || (data.conciergeWhatsapp is string && data.conciergeWhatsapp.size() <= 40))
+      && (!('adminNotificationEmail' in data) || (data.adminNotificationEmail is string && data.adminNotificationEmail.size() <= 160))
+      && (!('heroHeadlineFr' in data) || (data.heroHeadlineFr is string && data.heroHeadlineFr.size() <= 240))
+      && (!('heroSubheadlineFr' in data) || (data.heroSubheadlineFr is string && data.heroSubheadlineFr.size() <= 600))
+      && (!('customHeadingFr' in data) || (data.customHeadingFr is string && data.customHeadingFr.size() <= 200))
+      && (!('customDescriptionFr' in data) || (data.customDescriptionFr is string && data.customDescriptionFr.size() <= 800))
+      && (!('researchTimeFr' in data) || (data.researchTimeFr is string && data.researchTimeFr.size() <= 600))
+      && (!('disclaimerFr' in data) || (data.disclaimerFr is string && data.disclaimerFr.size() <= 1200))
+      && (!('disclaimerEn' in data) || (data.disclaimerEn is string && data.disclaimerEn.size() <= 1200))
+      && data.updatedAt == request.time;
+    }
+
+    // --- Collection: /admins/{adminId} ---
+    match /admins/{adminId} {
+      allow get: if isValidId(adminId) && isAdmin();
+      allow list: if isPrimaryAdmin();
+      allow create: if isValidId(adminId)
+        && isValidAdminUser(incoming())
+        && incoming().createdAt == request.time
+        && isPrimaryAdmin();
+      allow update: if false;
+      allow delete: if isValidId(adminId) && isPrimaryAdmin();
+    }
+
+    // --- Collection: /settings/{settingId} ---
+    match /settings/{settingId} {
+      allow get: if isValidId(settingId);
+      allow list: if false;
+      allow create, update: if isValidId(settingId)
+        && isValidSiteSettings(incoming())
+        && isAdmin();
+      allow delete: if false;
+    }
+  }
+}

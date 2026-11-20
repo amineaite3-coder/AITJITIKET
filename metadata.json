@@ -1,0 +1,8 @@
+{
+  "name": "AITJITIKET",
+  "description": "International ticket research and concierge assistance platform for concerts, football matches, festivals, sports, and VIP experiences.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
