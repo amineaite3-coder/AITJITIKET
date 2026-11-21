@@ -14,4 +14,8 @@ if (!fs.existsSync(compiledServerPath)) {
 }
 
 process.env.NODE_ENV = process.env.NODE_ENV || 'production';
-await import('./dist/server.js');
+
+import('./dist/server.js').catch((err) => {
+  console.error('Failed to start server:', err);
+  process.exit(1);
+});
